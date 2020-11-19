@@ -1,0 +1,51 @@
+---
+name: 'CI'
+on:
+  push:
+    branches:
+      - 'main'
+    tags:
+      - v*
+    pull_request:
+      branches:
+        - '*'
+env:
+  IMAGE_NAME: 'fhdhr_locast'
+jobs:
+  build_test_push_docker_image:
+    name: 'build-push'
+    needs:
+      - 'hadolint'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'checkout'
+        uses: 'actions/checkout@v2'
+      - name: 'build and tag image'
+        id: 'build-tag-image'
+        run: |
+          docker build --file Dockerfile --tag ${IMAGE_NAME} .
+      - name: Log into registry
+        run: echo "${{ secrets.CR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: 'push image'
+        if: "${{ github.ref == 'refs/heads/main' }}"
+        id: 'push-image'
+        run: |
+          IMAGE_ID=ghcr.io/${{ github.actor }}/$IMAGE_NAME
+          # Change all uppercase to lowercase
+          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+          # Strip git ref prefix from version
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          # Strip "v" prefix from tag name
+          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+          # Use Docker `latest` tag convention
+          [ "$VERSION" == "main" ] && VERSION=latest
+          echo IMAGE_ID=$IMAGE_ID
+          echo VERSION=$VERSION
+          docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
+          docker push $IMAGE_ID:$VERSION
+  hadolint:
+    name: 'hadolint'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: 'actions/checkout@v2'
+      - uses: 'burdzwastaken/hadolint-action@master'

@@ -1,7 +1,7 @@
-FROM python:3.8-slim
-  
+FROM python:3.9-slim
+
 RUN apt-get -qq update && \
-    apt-get -qq -y install ffmpeg gcc && \
+    apt-get -qq -y install --no-install-recommends ffmpeg=7:4.1.6* gcc=4:8.3.0* && \
     apt-get autoclean && \
     rm -rf /var/lib/apt/lists/*
 
